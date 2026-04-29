@@ -5,10 +5,14 @@ A fast, lightweight, terminal-based bookmark management application written in G
 ## Features
 
 - **Fast & Lightweight**: Single binary with no external dependencies (except MySQL database)
-- **Full CRUD Operations**: Create, read, update, and delete bookmarks
-- **Tag Management**: Organize bookmarks with tags
+- **Complete CRUD Operations**: Create, read, update, and delete bookmarks
+- **Advanced Tag Management**: Organize, rename, and clean up tags
 - **Powerful Search**: Fulltext search across titles, excerpts, and content
 - **Flexible Filtering**: Filter bookmarks by tags, public status, and more
+- **Link Validation**: Check if bookmarks are still reachable with concurrent validation
+- **Batch Operations**: Delete multiple bookmarks at once
+- **Export/Import**: Backup and restore bookmarks in JSON or CSV format
+- **Browser Integration**: Open bookmarks directly from the terminal
 - **Clean CLI**: Built with Cobra for a familiar command-line experience
 - **Secure Configuration**: Store credentials securely with proper file permissions
 
@@ -82,6 +86,99 @@ linkmgr search "kubernetes tutorial"
 linkmgr search "golang" --limit 20
 ```
 
+### 5. View Bookmark Details
+
+```bash
+# Show detailed information
+linkmgr show 5
+
+# Show and open in browser
+linkmgr show 5 --open
+```
+
+### 6. Update Bookmarks
+
+```bash
+# Update URL (useful for fixing redirects or broken links)
+linkmgr update 5 --url "https://new-url.com"
+
+# Update title
+linkmgr update 5 --title "New Title"
+
+# Add tags without removing existing ones
+linkmgr update 5 --add-tags "extra,tag"
+
+# Replace all tags
+linkmgr update 5 --tags "new,tags,only"
+
+# Remove specific tags
+linkmgr update 5 --remove-tags "unwanted"
+
+# Update multiple fields
+linkmgr update 5 --url "https://updated.com" --title "Updated" --excerpt "New description" --public
+```
+
+### 7. Delete Bookmarks
+
+```bash
+# Delete with confirmation
+linkmgr delete 5
+
+# Delete multiple bookmarks
+linkmgr delete 5 10 15
+
+# Delete without confirmation
+linkmgr delete 5 --force
+```
+
+### 8. Manage Tags
+
+```bash
+# List all tags with usage counts
+linkmgr tags
+
+# Rename a tag globally
+linkmgr tag rename "old-name" "new-name"
+
+# Clean up orphaned tags
+linkmgr tags --cleanup
+linkmgr tags --cleanup --dry-run
+```
+
+### 9. Validate Bookmark Links
+
+```bash
+# Check if all bookmarks are reachable
+linkmgr validate
+
+# Validate only bookmarks with specific tag
+linkmgr validate --tag important
+
+# Customize validation
+linkmgr validate --concurrency 10 --timeout 10
+
+# Fix broken or redirected links
+linkmgr validate              # Find redirected URLs
+linkmgr update 5 --url "https://new-url.com"  # Update to correct URL
+```
+
+### 10. Export and Import
+
+```bash
+# Export to JSON
+linkmgr export bookmarks.json
+
+# Export to CSV
+linkmgr export bookmarks.csv
+
+# Import bookmarks
+linkmgr import bookmarks.json
+
+# Import with duplicate handling
+linkmgr import backup.json --skip-duplicates
+linkmgr import backup.json --update-duplicates
+```
+
 ## Usage
 
 ### Commands
@@ -125,6 +222,88 @@ linkmgr search <query> [flags]
 
 Flags:
   -n, --limit int        Maximum number of results
+```
+
+#### show - Show Bookmark Details
+
+```bash
+linkmgr show <id> [flags]
+
+Flags:
+  -o, --open             Open URL in default browser
+```
+
+#### update - Update Bookmark
+
+```bash
+linkmgr update <id> [flags]
+
+Flags:
+  -u, --url string         New URL
+  -t, --title string       New title
+  -e, --excerpt string     New excerpt
+  -a, --author string      New author
+      --content string     New content
+      --tags string        Replace all tags (comma-separated)
+      --add-tags string    Add tags (comma-separated)
+      --remove-tags string Remove tags (comma-separated)
+  -p, --public             Mark as public
+      --no-public          Mark as private
+```
+
+#### delete - Delete Bookmarks
+
+```bash
+linkmgr delete <id> [id...] [flags]
+
+Flags:
+  -f, --force            Skip confirmation prompt
+```
+
+#### tags - List All Tags
+
+```bash
+linkmgr tags [flags]
+
+Flags:
+      --cleanup          Remove orphaned tags
+      --dry-run          Show what would be deleted
+```
+
+#### tag - Manage Tags
+
+```bash
+linkmgr tag rename <old-name> <new-name>
+```
+
+#### validate - Validate URLs
+
+```bash
+linkmgr validate [flags]
+
+Flags:
+  -c, --concurrency int  Number of concurrent checks (default 5)
+  -t, --timeout int      Timeout in seconds per URL (default 5)
+      --tag string       Only validate bookmarks with this tag
+```
+
+#### export - Export Bookmarks
+
+```bash
+linkmgr export <filename> [flags]
+
+Flags:
+  -f, --format string    Export format (json or csv)
+```
+
+#### import - Import Bookmarks
+
+```bash
+linkmgr import <filename> [flags]
+
+Flags:
+      --skip-duplicates     Skip bookmarks with duplicate URLs
+      --update-duplicates   Update existing bookmarks
 ```
 
 #### version - Version Information
