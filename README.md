@@ -12,6 +12,7 @@ A fast, lightweight, terminal-based bookmark management application written in G
 - **Link Validation**: Check if bookmarks are still reachable with concurrent validation
 - **Batch Operations**: Delete multiple bookmarks at once
 - **Export/Import**: Backup and restore bookmarks in JSON or CSV format
+- **Hugo CMS Export**: Generate Hugo-compatible markdown files organized by tags
 - **Browser Integration**: Open bookmarks directly from the terminal
 - **Clean CLI**: Built with Cobra for a familiar command-line experience
 - **Secure Configuration**: Store credentials securely with proper file permissions
@@ -179,6 +180,22 @@ linkmgr import backup.json --skip-duplicates
 linkmgr import backup.json --update-duplicates
 ```
 
+### 11. Hugo CMS Export
+
+```bash
+# Export bookmarks to Hugo-compatible markdown (one file per tag)
+linkmgr hugo --output content/bookmarks
+
+# Export all in single file
+linkmgr hugo --output content/bookmarks --single-file
+
+# Export as drafts with author
+linkmgr hugo --output content/bookmarks --draft --author "Your Name"
+
+# Custom content type and section
+linkmgr hugo --output content/links --type links --section links
+```
+
 ## Usage
 
 ### Commands
@@ -304,6 +321,21 @@ linkmgr import <filename> [flags]
 Flags:
       --skip-duplicates     Skip bookmarks with duplicate URLs
       --update-duplicates   Update existing bookmarks
+```
+
+#### hugo - Export to Hugo CMS
+
+```bash
+linkmgr hugo [flags]
+
+Flags:
+  -o, --output string    Output directory (default "content/bookmarks")
+      --section string   Hugo section name (default "bookmarks")
+      --type string      Hugo content type (default "bookmark")
+      --author string    Author name for front matter
+      --draft            Mark content as draft
+      --per-tag          Create one file per tag (default)
+      --single-file      Create single file with all bookmarks
 ```
 
 #### version - Version Information
