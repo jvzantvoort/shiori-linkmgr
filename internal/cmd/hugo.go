@@ -164,7 +164,7 @@ func exportHugoSingleFile(ctx context.Context, repo repository.BookmarkRepositor
 					if i > 0 {
 						fmt.Fprintf(file, ", ")
 					}
-					fmt.Fprintf(file, linkTag(tag.Name))
+					fmt.Fprintf(file, "%s", linkTag(tag.Name))
 				}
 				fmt.Fprintf(file, "\n\n")
 			}
@@ -273,7 +273,7 @@ func exportHugoByTag(ctx context.Context, repo repository.BookmarkRepository, ta
 							fmt.Fprintf(file, ", ")
 						}
 						// fmt.Fprintf(file, "`%s`", tag.Name)
-						fmt.Fprintf(file, linkTag(tag.Name))
+						fmt.Fprintf(file, "%s", linkTag(tag.Name))
 						first = false
 					}
 				}
