@@ -1,0 +1,537 @@
+# Tasks: Terminal-Based Link Management Application
+
+**Input**: Design documents from `.specify/`  
+**Prerequisites**: speckit.plan (complete), speckit.specify (complete)
+
+**Tests**: Unit tests and integration tests are included to ensure reliability and maintainability.
+
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US7, INFRA)
+- Include exact file paths in descriptions
+
+## Path Conventions
+
+Using standard Go project layout:
+- **Application entry**: `cmd/linkmgr/`
+- **Internal packages**: `internal/` (cmd, models, repository, config, display, validator)
+- **Tests**: `tests/` (integration tests, fixtures)
+- **Documentation**: Root level (README.md, .linkmgr.yaml.example)
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure
+
+- [ ] T001 Initialize Go module with `go mod init github.com/jvzantvoort/linkmgr`
+- [ ] T002 Create directory structure: `cmd/linkmgr/`, `internal/`, `tests/`
+- [ ] T003 [P] Create subdirectories: `internal/cmd/`, `internal/models/`, `internal/repository/`, `internal/config/`, `internal/display/`, `internal/validator/`
+- [ ] T004 [P] Create `Makefile` with targets: build, test, clean, install
+- [ ] T005 [P] Create `.gitignore` for Go projects (binaries, IDE files, config with secrets)
+- [ ] T006 [P] Add dependencies to go.mod: cobra, viper, mysql driver
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+### Database Layer Foundation
+
+- [ ] T007 [INFRA] Create `internal/models/bookmark.go` - Bookmark struct matching schema.sql
+- [ ] T008 [INFRA] Create `internal/models/tag.go` - Tag struct matching schema.sql
+- [ ] T009 [INFRA] Create `internal/repository/interface.go` - Define BookmarkRepository and TagRepository interfaces
+- [ ] T010 [INFRA] Create `internal/repository/mysql.go` - MySQL connection manager with connection pool
+- [ ] T011 [INFRA] Implement BookmarkRepository in `internal/repository/bookmark.go` with all CRUD methods
+- [ ] T012 [INFRA] Implement TagRepository in `internal/repository/tag.go` with all CRUD methods
+- [ ] T013 [INFRA] Add database transaction support in `internal/repository/transaction.go`
+
+### Configuration Foundation
+
+- [ ] T014 [INFRA] Create `internal/config/config.go` - Viper-based configuration loader
+- [ ] T015 [INFRA] Add support for config file (~/.linkmgr.yaml) and environment variables
+- [ ] T016 [INFRA] Create `.linkmgr.yaml.example` with sample database configuration
+- [ ] T017 [INFRA] Add config validation (required fields, connection string format)
+
+### CLI Framework Foundation
+
+- [ ] T018 [INFRA] Create `cmd/linkmgr/main.go` - Application entry point
+- [ ] T019 [INFRA] Create `internal/cmd/root.go` - Root Cobra command with global flags (--config, --verbose)
+- [ ] T020 [INFRA] Add version command in `internal/cmd/version.go`
+- [ ] T021 [INFRA] Wire up config loading and database initialization in root command
+
+### Utility Foundation
+
+- [ ] T022 [P] [INFRA] Create `internal/validator/url.go` - URL validation using net/url
+- [ ] T023 [P] [INFRA] Create `internal/validator/tag.go` - Tag name validation (length, characters)
+- [ ] T024 [P] [INFRA] Create `internal/display/table.go` - Table formatter for bookmark lists
+- [ ] T025 [P] [INFRA] Create `internal/display/detail.go` - Detail formatter for single bookmark view
+- [ ] T026 [P] [INFRA] Create `internal/display/error.go` - Error message formatter with suggestions
+
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+
+---
+
+## Phase 3: User Story 7 - Configure Database Connection (Priority: P1) 🎯 CRITICAL
+
+**Goal**: Enable users to configure database connection settings before using the application
+
+**Independent Test**: Run `linkmgr init`, provide database settings, verify config file is created and subsequent commands connect successfully
+
+### Implementation for User Story 7
+
+- [ ] T027 [US7] Create `internal/cmd/init.go` - Interactive configuration initialization command
+- [ ] T028 [US7] Add interactive prompts for database host, port, user, password, database name
+- [ ] T029 [US7] Test database connection during init and provide immediate feedback
+- [ ] T030 [US7] Save validated configuration to ~/.linkmgr.yaml with appropriate file permissions (0600)
+- [ ] T031 [US7] Add `--test-connection` flag to verify existing configuration
+- [ ] T032 [US7] Add help text and examples to init command
+
+### Tests for User Story 7
+
+- [ ] T033 [P] [US7] Unit test for config validation in `internal/config/config_test.go`
+- [ ] T034 [P] [US7] Integration test for init command with mock user input in `tests/integration/init_test.go`
+
+**Checkpoint**: Users can now configure the application and connect to their database
+
+---
+
+## Phase 4: User Story 1 - Add New Bookmarks (Priority: P1) 🎯 MVP
+
+**Goal**: Enable users to add bookmarks with URL and optional metadata from command line
+
+**Independent Test**: Run `linkmgr add https://example.com --title "Test" --tags "dev,tutorial"` and verify bookmark appears in database
+
+### Tests for User Story 1 (Write First)
+
+- [ ] T035 [P] [US1] Unit test for URL validator in `internal/validator/url_test.go`
+- [ ] T036 [P] [US1] Unit test for bookmark creation in `internal/repository/bookmark_test.go`
+- [ ] T037 [US1] Integration test for add command in `tests/integration/add_test.go`
+
+### Implementation for User Story 1
+
+- [ ] T038 [US1] Create `internal/cmd/add.go` - Add bookmark command
+- [ ] T039 [US1] Parse URL argument and validate using validator
+- [ ] T040 [US1] Add flags: --title, --tags, --excerpt, --author, --public
+- [ ] T041 [US1] Handle tag parsing (comma-separated) and normalization (trim, lowercase)
+- [ ] T042 [US1] Implement tag creation/lookup logic (create if doesn't exist, reuse if exists)
+- [ ] T043 [US1] Call BookmarkRepository.Create() with bookmark and tags
+- [ ] T044 [US1] Handle duplicate URL error with helpful message suggesting update command
+- [ ] T045 [US1] Set default title to URL if not provided
+- [ ] T046 [US1] Display success message with bookmark ID after creation
+- [ ] T047 [US1] Add comprehensive help text and usage examples
+
+**Checkpoint**: Users can now add bookmarks - basic MVP functionality achieved
+
+---
+
+## Phase 5: User Story 2 - List and Search Bookmarks (Priority: P1) 🎯 MVP
+
+**Goal**: Enable users to list all bookmarks and search/filter by various criteria
+
+**Independent Test**: Add several bookmarks, run `linkmgr list`, then `linkmgr list --tag dev`, then `linkmgr search "golang"` - verify filtering works
+
+### Tests for User Story 2 (Write First)
+
+- [ ] T048 [P] [US2] Unit test for table formatter in `internal/display/table_test.go`
+- [ ] T049 [P] [US2] Unit test for list filtering logic in `internal/repository/bookmark_test.go`
+- [ ] T050 [US2] Integration test for list command in `tests/integration/list_test.go`
+- [ ] T051 [US2] Integration test for search command in `tests/integration/search_test.go`
+
+### Implementation for User Story 2
+
+- [ ] T052 [US2] Create `internal/cmd/list.go` - List bookmarks command
+- [ ] T053 [US2] Add flags: --tag, --limit (default 50), --offset, --public-only
+- [ ] T054 [US2] Build filter struct from flags and pass to repository
+- [ ] T055 [US2] Call BookmarkRepository.List() with filters
+- [ ] T056 [US2] Format results using table formatter (ID, Title, URL, Tags, Created)
+- [ ] T057 [US2] Handle empty results with friendly message
+- [ ] T058 [US2] Add pagination info if results are truncated
+- [ ] T059 [US2] Create `internal/cmd/search.go` - Search bookmarks command
+- [ ] T060 [US2] Parse search query argument
+- [ ] T061 [US2] Add flag: --limit (default 50)
+- [ ] T062 [US2] Call BookmarkRepository.Search() using FULLTEXT search
+- [ ] T063 [US2] Format results using same table formatter
+- [ ] T064 [US2] Display search relevance if available from MySQL
+- [ ] T065 [US2] Add help text and search tips (FULLTEXT syntax)
+
+**Checkpoint**: Users can now find and browse their bookmarks - MVP is fully functional
+
+---
+
+## Phase 6: User Story 3 - View Bookmark Details (Priority: P2)
+
+**Goal**: Enable users to view complete details of a specific bookmark
+
+**Independent Test**: Run `linkmgr show 5` and verify all bookmark fields are displayed correctly
+
+### Tests for User Story 3
+
+- [ ] T066 [P] [US3] Unit test for detail formatter in `internal/display/detail_test.go`
+- [ ] T067 [US3] Integration test for show command in `tests/integration/show_test.go`
+
+### Implementation for User Story 3
+
+- [ ] T068 [US3] Create `internal/cmd/show.go` - Show bookmark details command
+- [ ] T069 [US3] Parse bookmark ID argument
+- [ ] T070 [US3] Add flag: --open (open URL in browser)
+- [ ] T071 [US3] Call BookmarkRepository.GetByID()
+- [ ] T072 [US3] Handle not found error with clear message
+- [ ] T073 [US3] Format output using detail formatter (all fields, formatted dates)
+- [ ] T074 [US3] Display tags as comma-separated list
+- [ ] T075 [US3] Implement --open flag using platform-specific browser launch (xdg-open, open, start)
+- [ ] T076 [US3] Add help text and examples
+
+**Checkpoint**: Users can view detailed information about bookmarks
+
+---
+
+## Phase 7: User Story 4 - Update Existing Bookmarks (Priority: P2)
+
+**Goal**: Enable users to modify bookmark metadata after creation
+
+**Independent Test**: Create bookmark, run `linkmgr update 1 --title "New Title" --add-tags "extra"`, verify changes persist
+
+### Tests for User Story 4
+
+- [ ] T077 [P] [US4] Unit test for update logic in `internal/repository/bookmark_test.go`
+- [ ] T078 [US4] Integration test for update command in `tests/integration/update_test.go`
+
+### Implementation for User Story 4
+
+- [ ] T079 [US4] Create `internal/cmd/update.go` - Update bookmark command
+- [ ] T080 [US4] Parse bookmark ID argument
+- [ ] T081 [US4] Add flags: --title, --excerpt, --author, --content, --public, --no-public
+- [ ] T082 [US4] Add flags: --tags (replace all), --add-tags (append), --remove-tags (delete specific)
+- [ ] T083 [US4] Fetch existing bookmark by ID
+- [ ] T084 [US4] Apply updates to bookmark fields (only modify specified flags)
+- [ ] T085 [US4] Handle tag operations (replace, add, remove) with proper normalization
+- [ ] T086 [US4] Update modified_at timestamp automatically (database trigger or explicit set)
+- [ ] T087 [US4] Call BookmarkRepository.Update()
+- [ ] T088 [US4] Display success message with updated fields summary
+- [ ] T089 [US4] Add help text with examples for different update scenarios
+
+**Checkpoint**: Users can modify existing bookmarks
+
+---
+
+## Phase 8: User Story 5 - Delete Bookmarks (Priority: P2)
+
+**Goal**: Enable users to delete bookmarks they no longer need
+
+**Independent Test**: Create bookmark, run `linkmgr delete 1`, confirm deletion, verify bookmark is removed
+
+### Tests for User Story 5
+
+- [ ] T090 [P] [US5] Unit test for delete logic in `internal/repository/bookmark_test.go`
+- [ ] T091 [US5] Integration test for delete command with confirmation in `tests/integration/delete_test.go`
+
+### Implementation for User Story 5
+
+- [ ] T092 [US5] Create `internal/cmd/delete.go` - Delete bookmark command
+- [ ] T093 [US5] Parse bookmark ID argument(s) - support multiple IDs
+- [ ] T094 [US5] Add flag: --force (skip confirmation)
+- [ ] T095 [US5] Fetch bookmark(s) by ID to display what will be deleted
+- [ ] T096 [US5] Implement confirmation prompt (y/n) unless --force is set
+- [ ] T097 [US5] Call BookmarkRepository.Delete() for each ID
+- [ ] T098 [US5] Ensure tag associations are deleted (CASCADE or explicit delete)
+- [ ] T099 [US5] Display success message with count of deleted bookmarks
+- [ ] T100 [US5] Handle errors gracefully (not found, database errors)
+- [ ] T101 [US5] Add help text with batch delete examples
+
+**Checkpoint**: Users can delete unwanted bookmarks
+
+---
+
+## Phase 9: User Story 6 - Manage Tags (Priority: P3)
+
+**Goal**: Enable users to view, rename, and clean up tags
+
+**Independent Test**: Run `linkmgr tags` to see all tags, `linkmgr tag rename "old" "new"`, verify tag is renamed
+
+### Tests for User Story 6
+
+- [ ] T102 [P] [US6] Unit test for tag operations in `internal/repository/tag_test.go`
+- [ ] T103 [US6] Integration test for tags command in `tests/integration/tags_test.go`
+
+### Implementation for User Story 6
+
+- [ ] T104 [US6] Create `internal/cmd/tag.go` - Tag management parent command
+- [ ] T105 [US6] Create `tags` subcommand to list all tags with usage counts
+- [ ] T106 [US6] Implement query to get tag usage counts (JOIN with bookmark_tag)
+- [ ] T107 [US6] Format output as table (Tag Name, Count)
+- [ ] T108 [US6] Sort by count descending or alphabetically (add flag for sort order)
+- [ ] T109 [US6] Create `tag rename` subcommand with old and new name arguments
+- [ ] T110 [US6] Validate new tag name doesn't already exist
+- [ ] T111 [US6] Update tag name in tag table (affects all bookmarks via FK)
+- [ ] T112 [US6] Display success message with count of affected bookmarks
+- [ ] T113 [US6] Create `tag cleanup` subcommand to remove orphaned tags
+- [ ] T114 [US6] Add flag: --dry-run (show what would be deleted)
+- [ ] T115 [US6] Query for tags with zero bookmark associations
+- [ ] T116 [US6] Delete orphaned tags or show preview if --dry-run
+- [ ] T117 [US6] Add help text for all tag subcommands
+
+**Checkpoint**: Users can maintain their tagging system
+
+---
+
+## Phase 10: User Story 8 - Export and Import Bookmarks (Priority: P3)
+
+**Goal**: Enable users to export/import bookmarks for backup and migration
+
+**Independent Test**: Run `linkmgr export data.json`, verify JSON file, run `linkmgr import data.json`, verify bookmarks imported
+
+### Tests for User Story 8
+
+- [ ] T118 [P] [US8] Unit test for JSON serialization in `internal/models/bookmark_test.go`
+- [ ] T119 [US8] Integration test for export/import in `tests/integration/export_test.go`
+
+### Implementation for User Story 8
+
+- [ ] T120 [US8] Create `internal/cmd/export.go` - Export bookmarks command
+- [ ] T121 [US8] Parse output filename argument
+- [ ] T122 [US8] Add flag: --format (json, csv)
+- [ ] T123 [US8] Fetch all bookmarks with tags from repository
+- [ ] T124 [US8] Serialize to JSON format (array of bookmark objects)
+- [ ] T125 [US8] Optionally implement CSV export (flatten tags as comma-separated)
+- [ ] T126 [US8] Write to file with error handling
+- [ ] T127 [US8] Display success message with count and file size
+- [ ] T128 [US8] Create `internal/cmd/import.go` - Import bookmarks command
+- [ ] T129 [US8] Parse input filename argument
+- [ ] T130 [US8] Add flag: --skip-duplicates, --update-duplicates
+- [ ] T131 [US8] Read and parse JSON file
+- [ ] T132 [US8] Validate bookmark data before import
+- [ ] T133 [US8] Handle duplicates based on flag (skip, update, or error)
+- [ ] T134 [US8] Import bookmarks with tags in transaction
+- [ ] T135 [US8] Display progress for large imports
+- [ ] T136 [US8] Display summary (imported, skipped, failed)
+- [ ] T137 [US8] Add help text with format examples
+
+**Checkpoint**: Users can backup and restore their bookmark data
+
+---
+
+## Phase 11: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories and final quality assurance
+
+### Documentation
+
+- [ ] T138 [P] [POLISH] Write comprehensive README.md with installation, configuration, and usage
+- [ ] T139 [P] [POLISH] Add CONTRIBUTING.md with development setup instructions
+- [ ] T140 [P] [POLISH] Create examples/ directory with sample workflows
+- [ ] T141 [P] [POLISH] Document all CLI commands with detailed help text
+
+### Testing & Quality
+
+- [ ] T142 [POLISH] Create test fixtures in `tests/fixtures/` (sample bookmarks, tags)
+- [ ] T143 [POLISH] Write integration test setup script (create test database, run schema)
+- [ ] T144 [POLISH] Add table-driven tests for all validators
+- [ ] T145 [POLISH] Test error paths (database down, invalid config, etc.)
+- [ ] T146 [POLISH] Run `go vet` and fix all issues
+- [ ] T147 [POLISH] Run `gofmt -s -w .` to format all code
+- [ ] T148 [POLISH] Run `golangci-lint` if available and fix issues
+- [ ] T149 [POLISH] Verify test coverage >80% for core packages (models, repository, validator)
+
+### Performance & Optimization
+
+- [ ] T150 [POLISH] Test with 10k+ bookmarks to verify <500ms query performance
+- [ ] T151 [POLISH] Add prepared statement caching for frequently used queries
+- [ ] T152 [POLISH] Optimize connection pool settings for CLI usage pattern
+- [ ] T153 [POLISH] Profile memory usage and fix any leaks
+- [ ] T154 [POLISH] Add query timing logs in verbose mode
+
+### Error Handling & UX
+
+- [ ] T155 [POLISH] Review all error messages for clarity and actionability
+- [ ] T156 [POLISH] Add troubleshooting tips to common errors (connection refused, authentication failed)
+- [ ] T157 [POLISH] Ensure consistent exit codes (0=success, 1=error, 2=usage error)
+- [ ] T158 [POLISH] Test table formatting at 80, 120, 160 column widths
+- [ ] T159 [POLISH] Add color support for errors/success (with auto-detection/disable flag)
+
+### Build & Release
+
+- [ ] T160 [P] [POLISH] Update Makefile with install target (copy to ~/bin or /usr/local/bin)
+- [ ] T161 [P] [POLISH] Add build target for multiple platforms (linux, darwin, windows)
+- [ ] T162 [P] [POLISH] Add version information embedded in binary (git commit, build date)
+- [ ] T163 [POLISH] Test binary on Linux, macOS, and Windows
+- [ ] T164 [POLISH] Create release checklist and tag v1.0.0
+
+### Final Validation
+
+- [ ] T165 [POLISH] Run through quickstart guide as new user
+- [ ] T166 [POLISH] Test all P1 user stories end-to-end
+- [ ] T167 [POLISH] Verify all functional requirements (FR-001 to FR-020) are met
+- [ ] T168 [POLISH] Verify all success criteria (SC-001 to SC-008) are met
+- [ ] T169 [POLISH] Code review and refactoring pass
+- [ ] T170 [POLISH] Final integration test suite run
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - start immediately
+- **Foundational (Phase 2)**: Depends on Setup - BLOCKS all user stories
+- **User Story 7 (Phase 3)**: Depends on Foundation - CRITICAL for all subsequent stories
+- **User Stories 1-2 (Phase 4-5)**: Depend on Foundation + US7 - Core MVP
+- **User Stories 3-5 (Phase 6-8)**: Depend on Foundation + US7 - P2 features
+- **User Stories 6,8 (Phase 9-10)**: Depend on Foundation + US7 - P3 features
+- **Polish (Phase 11)**: Depends on all desired user stories
+
+### Parallel Execution Strategy
+
+**After Foundation (Phase 2) completes:**
+
+```
+US7 (Config) → Must complete first
+├─ US1 (Add)     → Can start after US7
+├─ US2 (List)    → Can start after US7, parallel with US1
+├─ US3 (Show)    → Can start after US7, parallel with US1/US2
+├─ US4 (Update)  → Can start after US7, parallel with others
+├─ US5 (Delete)  → Can start after US7, parallel with others
+├─ US6 (Tags)    → Can start after US7, parallel with others
+└─ US8 (Export)  → Can start after US7, parallel with others
+```
+
+### Recommended Implementation Order (Single Developer)
+
+1. **Phase 1 + Phase 2** (Foundation) - Days 1-3
+2. **Phase 3** (US7: Config) - Day 4
+3. **Phase 4** (US1: Add) - Day 5
+4. **Phase 5** (US2: List/Search) - Days 6-7
+5. **Phase 6** (US3: Show) - Day 8
+6. **Phase 7** (US4: Update) - Day 9
+7. **Phase 8** (US5: Delete) - Day 10
+8. **Phase 9** (US6: Tags) - Day 11 (Optional P3)
+9. **Phase 10** (US8: Export/Import) - Day 12 (Optional P3)
+10. **Phase 11** (Polish) - Days 13-15
+
+### MVP Checkpoint (Minimum Viable Product)
+
+**Stop here for initial release:**
+- Phase 1 (Setup) ✓
+- Phase 2 (Foundation) ✓
+- Phase 3 (US7: Config) ✓
+- Phase 4 (US1: Add) ✓
+- Phase 5 (US2: List/Search) ✓
+- Phase 11 (Essential Polish: T138-T149, T165-T168) ✓
+
+**This delivers**: Functional bookmark manager with add, list, search capabilities.
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- All validators (URL, tag)
+- All formatters (table, detail, error)
+- Data model methods
+- Repository methods with mock DB
+
+### Integration Tests
+- Each command with real test database
+- Database operations (CRUD with transactions)
+- Configuration loading from file/env
+- End-to-end workflows
+
+### Test Database Setup
+```bash
+# Create test database
+mysql -u root -e "CREATE DATABASE linkmgr_test;"
+mysql -u root linkmgr_test < schema.sql
+
+# Run tests
+go test ./... -v
+go test ./tests/integration/... -v -tags=integration
+```
+
+### Coverage Goals
+- Validators: 100%
+- Repository: >90%
+- Commands: >80%
+- Overall: >80%
+
+---
+
+## Implementation Notes
+
+### Code Quality Checklist (Per Task)
+- [ ] Function/method has clear single responsibility
+- [ ] Error handling with wrapped errors (fmt.Errorf with %w)
+- [ ] Input validation before processing
+- [ ] Structured logging for debugging
+- [ ] Comments for non-obvious logic only
+- [ ] Unit test written (if applicable)
+- [ ] Code formatted with gofmt
+- [ ] No hardcoded values (use config/constants)
+
+### Database Best Practices
+- Use prepared statements for all queries
+- Use transactions for multi-table operations
+- Close connections/rows in defer statements
+- Handle sql.ErrNoRows explicitly
+- Use context.Context for cancellation support
+
+### CLI Best Practices
+- Validate all inputs before database operations
+- Provide helpful error messages with suggestions
+- Use consistent flag naming across commands
+- Include usage examples in help text
+- Exit with appropriate codes (0, 1, 2)
+
+### Git Workflow
+- Commit after each completed task or logical group
+- Use conventional commits: `feat:`, `fix:`, `test:`, `docs:`
+- Branch strategy: `feature/cli-link-manager`
+- Tag releases: `v1.0.0`, `v1.1.0`, etc.
+
+---
+
+## Success Metrics
+
+### Phase 2 Complete When:
+- [ ] Database connection works with config file
+- [ ] All repository interfaces defined
+- [ ] Basic models map to schema.sql
+- [ ] Root command executes without errors
+
+### MVP Complete When (Phases 1-5):
+- [ ] Users can configure database (US7)
+- [ ] Users can add bookmarks with tags (US1)
+- [ ] Users can list and search bookmarks (US2)
+- [ ] All tests pass
+- [ ] README documents basic usage
+
+### Full Feature Complete When (All Phases):
+- [ ] All P1 and P2 user stories implemented
+- [ ] All functional requirements met
+- [ ] Performance benchmarks achieved
+- [ ] Documentation complete
+- [ ] Tests passing with >80% coverage
+
+---
+
+## Risk Mitigation
+
+| Risk | Mitigation Tasks |
+|------|------------------|
+| Database schema mismatch | T007-T008: Validate structs against schema.sql |
+| Connection pool issues | T010, T152: Test and tune pool settings |
+| FULLTEXT search performance | T150: Benchmark with 10k records |
+| Cross-platform build | T163: Test on all platforms |
+| Poor error UX | T155-T157: Systematic error message review |
+
+---
+
+**Total Tasks**: 170  
+**Estimated Effort**: 72-104 hours  
+**MVP Tasks**: ~90 (Phases 1-5 + essential polish)  
+**MVP Effort**: ~40-50 hours

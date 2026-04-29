@@ -1,0 +1,15 @@
+# linkmgr configuration file
+# This file should be placed at ~/.linkmgr.yaml
+# File permissions should be 0600 for security
+
+database:
+  host: localhost
+  port: 3306
+  user: your_database_user
+  password: your_database_password
+  database: shiori
+  maxConnections: 10
+
+display:
+  defaultLimit: 50
+  dateFormat: "2006-01-02 15:04"

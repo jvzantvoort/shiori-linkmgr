@@ -1,0 +1,568 @@
+# Implementation Plan: Terminal-Based Link Management Application
+
+**Branch**: `feature/cli-link-manager` | **Date**: 2026-04-29 | **Spec**: `.specify/speckit.specify`
+**Input**: Terminal-based link management application in Go with CRUD operations for bookmarks, tags, and tag associations stored in MySQL
+
+## Summary
+
+Build a terminal-based bookmark manager in Go using Cobra for CLI interface and Viper for configuration. The application provides CRUD operations for bookmarks and tags stored in an existing MySQL database schema (schema.sql). Core features include adding/removing bookmarks, managing tags, associating tags with bookmarks, searching, and listing with filters. The system prioritizes developer experience with clean CLI patterns, helpful error messages, and fast response times (<500ms for queries).
+
+## Technical Context
+
+**Language/Version**: Go 1.21+  
+**Primary Dependencies**: 
+- `github.com/spf13/cobra` - CLI framework
+- `github.com/spf13/viper` - Configuration management
+- `github.com/go-sql-driver/mysql` - MySQL driver
+- `github.com/olekukonko/tablewriter` - Terminal table formatting (optional)
+
+**Storage**: MySQL/MariaDB 10.11+ with existing schema (utf8mb4, InnoDB)  
+**Testing**: Go standard testing (`testing` package), table-driven tests  
+**Target Platform**: Linux/macOS/Windows terminal (cross-platform CLI)  
+**Project Type**: Single-binary CLI application  
+**Performance Goals**: 
+- Add/update operations: <2s
+- Search/list queries: <500ms (up to 10k bookmarks)
+- Interactive operations: <100ms
+
+**Constraints**: 
+- Single binary with no external dependencies beyond database
+- Compatible with existing schema.sql structure
+- Terminal-friendly output (80-column default)
+- Standard Unix exit codes and conventions
+
+**Scale/Scope**: 
+- Single-user application
+- Support for 10k+ bookmarks
+- ~8 primary commands (add, list, search, show, update, delete, tags, init)
+- ~15-20 source files
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+### Code Quality
+✅ **Clarity Over Cleverness**: Go's simplicity aligns well; avoid reflection/generics unless necessary  
+✅ **Maintainability**: Standard Go project layout, single responsibility per package  
+✅ **Consistency**: Follow Go conventions (gofmt, golint), idiomatic error handling  
+✅ **Reliability**: Defensive coding for database ops, input validation, graceful error handling  
+✅ **Testability**: Interfaces for database layer to enable mocking
+
+### User Experience Consistency
+✅ **Interface Predictability**: Standard CLI patterns (flags, subcommands, POSIX conventions)  
+✅ **Interaction Patterns**: Confirmation prompts for destructive ops, consistent flag naming  
+✅ **Error Communication**: Clear, actionable error messages with troubleshooting hints  
+⚠️ **Visual Consistency**: Use consistent table formatting across list/search commands
+
+### Performance Requirements
+✅ **Response Time Standards**: All within spec (<100ms interactive, <500ms queries)  
+✅ **Resource Efficiency**: Connection pooling, prepared statements, pagination for large sets  
+✅ **Monitoring**: Structured logging for debugging, timing logs for slow queries  
+
+### Security
+✅ **Security First**: Parameterized queries (no SQL injection), config file permissions  
+✅ **Data Privacy**: Database credentials via config file or env vars (never hardcoded)
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+.specify/
+├── speckit.specify        # Feature specification (created)
+├── speckit.constitution   # Project principles (created)
+├── speckit.plan          # This file (implementation plan)
+├── research.md           # Phase 0: Technology research and decisions
+├── data-model.md         # Phase 1: Go structs, database layer design
+├── quickstart.md         # Phase 1: Installation and usage guide
+└── contracts/            # Phase 1: Interface contracts and examples
+    ├── database.md       # Repository interfaces
+    ├── cli-commands.md   # Command specifications
+    └── config.md         # Configuration format
+```
+
+### Source Code (repository root)
+
+```text
+linkmgr/                  # Repository root
+├── cmd/
+│   └── linkmgr/
+│       └── main.go       # Application entry point
+├── internal/
+│   ├── cmd/              # Cobra command implementations
+│   │   ├── root.go       # Root command and global flags
+│   │   ├── add.go        # Add bookmark command
+│   │   ├── list.go       # List bookmarks command
+│   │   ├── search.go     # Search bookmarks command
+│   │   ├── show.go       # Show bookmark details command
+│   │   ├── update.go     # Update bookmark command
+│   │   ├── delete.go     # Delete bookmark command
+│   │   ├── tag.go        # Tag management commands
+│   │   └── init.go       # Initialize configuration command
+│   ├── models/           # Data models
+│   │   ├── bookmark.go   # Bookmark struct
+│   │   ├── tag.go        # Tag struct
+│   │   └── account.go    # Account struct (future)
+│   ├── repository/       # Database layer
+│   │   ├── interface.go  # Repository interfaces
+│   │   ├── mysql.go      # MySQL implementation
+│   │   ├── bookmark.go   # Bookmark repository
+│   │   └── tag.go        # Tag repository
+│   ├── config/           # Configuration management
+│   │   └── config.go     # Viper-based config loader
+│   ├── display/          # Output formatting
+│   │   ├── table.go      # Table formatter
+│   │   └── detail.go     # Detail view formatter
+│   └── validator/        # Input validation
+│       └── url.go        # URL validation
+├── pkg/                  # Public packages (if any)
+├── tests/
+│   ├── integration/      # Integration tests with test database
+│   │   └── bookmark_test.go
+│   └── fixtures/         # Test data
+│       └── sample_bookmarks.json
+├── go.mod
+├── go.sum
+├── Makefile              # Build and test automation
+├── README.md             # User documentation
+├── .linkmgr.yaml.example # Example configuration file
+└── schema.sql            # Database schema (existing)
+```
+
+**Structure Decision**: Standard Go project layout with `cmd/` for binaries and `internal/` for private packages. The `internal/cmd/` package contains Cobra command implementations, while `internal/repository/` provides database abstraction. This structure supports testability through interfaces and follows Go community conventions.
+
+## Complexity Tracking
+
+*No constitution violations - all complexity justified by requirements*
+
+## Phase 0: Research & Discovery
+
+### Goals
+- Validate MySQL driver options and connection patterns
+- Research Cobra/Viper best practices and patterns
+- Determine table formatting library (tablewriter vs manual)
+- Investigate URL validation approaches
+- Review error handling patterns for CLI applications
+- Examine connection pooling and prepared statement patterns
+
+### Research Tasks
+
+#### R1: Database Layer Design
+**Question**: What's the best pattern for MySQL access in a CLI application?
+
+**Research needed**:
+- Connection pooling configuration for short-lived CLI commands
+- Prepared statement best practices
+- Transaction handling for multi-table operations (bookmark + tags)
+- Error handling and connection retry logic
+- Testing patterns (mocking vs test database)
+
+**Success criteria**: Document connection pattern with example code
+
+---
+
+#### R2: CLI Framework Patterns
+**Question**: How to structure Cobra commands and Viper config for this use case?
+
+**Research needed**:
+- Cobra command hierarchy (root + subcommands vs flat)
+- Flag binding to Viper config
+- Environment variable override patterns
+- Config file locations and precedence
+- Interactive prompts for confirmation (delete) and init
+
+**Success criteria**: Example command implementation showing config loading
+
+---
+
+#### R3: Output Formatting
+**Question**: Best approach for terminal output (tables, details, errors)?
+
+**Research needed**:
+- tablewriter library vs manual formatting
+- Color support detection (optional enhancement)
+- Pagination strategies (limit vs page numbers)
+- Error message formatting conventions
+- Progress indicators for slow operations
+
+**Success criteria**: Example formatters for list and detail views
+
+---
+
+#### R4: Input Validation
+**Question**: How to validate URLs and other inputs effectively?
+
+**Research needed**:
+- URL parsing and validation (net/url package)
+- Tag name validation rules
+- Input sanitization for SQL safety (parameterization)
+- Error message composition for validation failures
+
+**Success criteria**: Validation function examples with test cases
+
+---
+
+#### R5: Testing Strategy
+**Question**: What testing approach balances coverage and maintainability?
+
+**Research needed**:
+- Unit tests for validators and formatters
+- Integration tests for database operations
+- Test database setup/teardown patterns
+- Table-driven test patterns for commands
+- Mock vs real database trade-offs
+
+**Success criteria**: Testing plan with example test structure
+
+---
+
+### Research Deliverables
+
+Create `.specify/research.md` with findings for:
+1. Recommended database access pattern with code examples
+2. CLI command structure template showing Cobra/Viper integration
+3. Output formatting approach with example implementations
+4. Validation patterns and helper functions
+5. Testing strategy with directory structure and examples
+
+## Phase 1: Design & Contracts
+
+### Goals
+- Define Go structs for all data models
+- Specify repository interfaces (bookmark, tag)
+- Design command-line interface (all commands and flags)
+- Document configuration file format
+- Create usage examples and quickstart guide
+
+### Design Artifacts
+
+#### D1: Data Model Design
+**File**: `.specify/data-model.md`
+
+**Contents**:
+- Go structs for Bookmark, Tag, BookmarkTag
+- Field mappings to database schema
+- Null handling strategy (sql.NullString vs pointers)
+- Timestamp handling (time.Time conversion)
+- Tag slice handling for joined queries
+
+**Example**:
+```go
+type Bookmark struct {
+    ID         int
+    URL        string
+    Title      string
+    Excerpt    string
+    Author     string
+    Public     bool
+    Content    string
+    HTML       string
+    CreatedAt  time.Time
+    ModifiedAt time.Time
+    HasContent bool
+    Tags       []Tag  // Populated via JOIN
+}
+```
+
+---
+
+#### D2: Repository Contracts
+**File**: `.specify/contracts/database.md`
+
+**Contents**:
+- BookmarkRepository interface methods
+- TagRepository interface methods
+- Error types and handling conventions
+- Transaction management approach
+
+**Example**:
+```go
+type BookmarkRepository interface {
+    Create(ctx context.Context, bookmark *Bookmark, tags []string) error
+    GetByID(ctx context.Context, id int) (*Bookmark, error)
+    List(ctx context.Context, filters ListFilters) ([]Bookmark, error)
+    Search(ctx context.Context, query string) ([]Bookmark, error)
+    Update(ctx context.Context, bookmark *Bookmark) error
+    Delete(ctx context.Context, id int) error
+}
+```
+
+---
+
+#### D3: CLI Command Specifications
+**File**: `.specify/contracts/cli-commands.md`
+
+**Contents**:
+- Complete command reference with flags
+- Input/output examples for each command
+- Exit codes and error scenarios
+- Flag validation rules
+
+**Example**:
+```bash
+# Add bookmark
+linkmgr add <url> [flags]
+  --title string       Bookmark title (default: fetched from URL or URL itself)
+  --tags string        Comma-separated tags
+  --excerpt string     Brief description
+  --public             Mark as public (default false)
+
+# List bookmarks
+linkmgr list [flags]
+  --tag string         Filter by tag
+  --limit int          Max results (default 50)
+  --offset int         Pagination offset
+
+# Search bookmarks
+linkmgr search <query> [flags]
+  --limit int          Max results (default 50)
+```
+
+---
+
+#### D4: Configuration Format
+**File**: `.specify/contracts/config.md`
+
+**Contents**:
+- YAML configuration structure
+- Environment variable mappings
+- Default values
+- Config file search locations
+
+**Example**:
+```yaml
+database:
+  host: localhost
+  port: 3306
+  user: linkmgr
+  password: secret
+  database: shiori
+  maxConnections: 10
+  
+display:
+  defaultLimit: 50
+  dateFormat: "2006-01-02 15:04"
+```
+
+---
+
+#### D5: Quickstart Guide
+**File**: `.specify/quickstart.md`
+
+**Contents**:
+- Installation instructions
+- Initial configuration steps
+- Basic usage examples
+- Common workflows
+- Troubleshooting tips
+
+### Design Deliverables
+
+1. Complete data model documentation
+2. Repository interface specifications
+3. Full CLI command reference
+4. Configuration documentation
+5. User quickstart guide
+
+## Phase 2: Implementation Tasks
+
+**Note**: Detailed tasks will be generated by `/speckit.tasks` command after Phase 1 design is complete.
+
+### Task Categories Preview
+
+1. **Project Setup** (T001-T005)
+   - Initialize Go module
+   - Setup directory structure
+   - Configure dependencies
+   - Create Makefile
+   - Add example config file
+
+2. **Core Infrastructure** (T006-T015)
+   - Database connection management
+   - Configuration loading (Viper)
+   - Repository interfaces
+   - MySQL repository implementation
+   - Connection pooling and prepared statements
+
+3. **Data Models** (T016-T020)
+   - Bookmark struct and methods
+   - Tag struct and methods
+   - Type conversions (DB ↔ Go)
+   - Null value handling
+   - Timestamp utilities
+
+4. **CLI Framework** (T021-T030)
+   - Root command setup (Cobra)
+   - Global flags and config binding
+   - Init command (interactive config)
+   - Add command
+   - List command
+   - Search command
+   - Show command
+   - Update command
+   - Delete command
+   - Tag management commands
+
+5. **Output Formatting** (T031-T035)
+   - Table formatter
+   - Detail view formatter
+   - Error message formatter
+   - Confirmation prompts
+   - Pagination helper
+
+6. **Validation** (T036-T040)
+   - URL validator
+   - Tag name validator
+   - Input sanitization
+   - Error message composition
+
+7. **Testing** (T041-T050)
+   - Unit tests for validators
+   - Unit tests for formatters
+   - Integration tests for repository
+   - Command integration tests
+   - Test fixtures and helpers
+
+8. **Documentation** (T051-T055)
+   - README.md
+   - Command help text
+   - Example config file
+   - Error message catalog
+   - Build and installation docs
+
+9. **Polish** (T056-T060)
+   - Build automation (Makefile)
+   - Error handling review
+   - Performance testing
+   - CLI UX refinement
+   - Final integration testing
+
+## Success Criteria
+
+### Phase 0 Complete When:
+- [ ] All research questions answered with documented findings
+- [ ] Technology choices validated with proof-of-concept code
+- [ ] Testing strategy defined
+- [ ] No blocking unknowns remain
+
+### Phase 1 Complete When:
+- [ ] All data models fully specified with Go types
+- [ ] All repository interfaces defined
+- [ ] Complete CLI command reference documented
+- [ ] Configuration format finalized
+- [ ] Quickstart guide written
+
+### Phase 2 Complete When:
+- [ ] All P1 user stories implemented and tested
+- [ ] Unit test coverage >80% for business logic
+- [ ] Integration tests pass against test database
+- [ ] Documentation complete and accurate
+- [ ] Binary builds and runs on Linux/macOS/Windows
+
+### Project Complete When:
+- [ ] All functional requirements (FR-001 through FR-020) implemented
+- [ ] All success criteria (SC-001 through SC-008) met
+- [ ] Performance benchmarks meet or exceed targets
+- [ ] Code passes gofmt, go vet, golint
+- [ ] README includes installation and usage instructions
+- [ ] Example configuration file provided
+
+## Risk Assessment
+
+### Technical Risks
+
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| Database schema changes | High | Validate schema.sql matches expectations; document assumptions |
+| Connection pool tuning for CLI | Medium | Research short-lived connection patterns; implement sensible defaults |
+| FULLTEXT search performance | Medium | Test with realistic data volumes; add indexes if needed |
+| Cross-platform compatibility | Low | Use stdlib and well-maintained libraries; test on multiple OS |
+| Tag deduplication logic | Medium | Handle case-sensitivity and whitespace consistently |
+
+### Execution Risks
+
+| Risk | Impact | Mitigation |
+|------|--------|-----------|
+| Scope creep (web UI, etc.) | Medium | Strictly follow spec; defer out-of-scope items |
+| Over-engineering database layer | Medium | Start simple (direct SQL); refactor only if needed |
+| Incomplete error handling | High | Systematic error handling review; test error paths |
+| Poor UX (confusing commands) | Medium | Follow Unix conventions; user testing with quickstart guide |
+
+## Dependencies
+
+### External Dependencies
+- MySQL/MariaDB 10.11+ (user-provided)
+- Go 1.21+ toolchain
+- Standard Unix tools (make, git)
+
+### Internal Dependencies
+- Phase 1 must complete before Phase 2 starts
+- Repository layer must be tested before command implementation
+- Configuration loading must work before commands can function
+
+### Dependency Management
+- Use Go modules (go.mod/go.sum)
+- Pin dependency versions
+- Minimal dependency philosophy (only essential libraries)
+- Prefer stdlib over third-party when reasonable
+
+## Timeline Estimate
+
+**Note**: These are rough estimates assuming single developer, part-time work.
+
+| Phase | Duration | Effort |
+|-------|----------|--------|
+| Phase 0: Research | 2-3 days | 8-12 hours |
+| Phase 1: Design | 3-4 days | 12-16 hours |
+| Phase 2: Implementation | 10-14 days | 40-56 hours |
+| Testing & Polish | 3-5 days | 12-20 hours |
+| **Total** | **18-26 days** | **72-104 hours** |
+
+### Milestone Breakdown
+
+**Week 1**: Research and Design (Phase 0-1)
+- Days 1-2: Technology research
+- Days 3-5: Interface design and documentation
+
+**Week 2-3**: Core Implementation (Phase 2)
+- Days 6-9: Database layer and models
+- Days 10-14: CLI commands (P1 features)
+- Days 15-17: P2 features and polish
+
+**Week 4**: Testing and Documentation
+- Days 18-20: Integration testing
+- Days 21-22: Documentation and examples
+- Days 23-24: Final polish and validation
+
+## Next Steps
+
+1. **Immediate**: Begin Phase 0 research
+   - Setup Go development environment
+   - Create proof-of-concept for MySQL connection
+   - Test Cobra/Viper integration pattern
+   - Validate schema.sql against MySQL
+
+2. **After Research**: Complete Phase 1 design
+   - Run `/speckit.plan` to generate research.md outline
+   - Document findings and decisions
+   - Create contract documents
+   - Review with stakeholders (if applicable)
+
+3. **After Design**: Generate implementation tasks
+   - Run `/speckit.tasks` to create detailed task breakdown
+   - Prioritize tasks by dependency and value
+   - Begin implementation with test database setup
+
+4. **During Implementation**: Continuous validation
+   - Test against constitution principles
+   - Validate performance against success criteria
+   - Update documentation as implementation reveals details
+   - Track technical debt and defer non-critical items
+
+## Notes
+
+- The existing schema.sql indicates this database is from "Shiori" bookmark manager - ensure compatibility
+- Account table exists but authentication is out of scope for MVP
+- Consider future enhancement: content fetching (has_content flag suggests this was planned)
+- Tag management should be case-insensitive to avoid duplicates ("Go" vs "go")
+- The schema supports fulltext search on title, excerpt, and content - leverage this for performance

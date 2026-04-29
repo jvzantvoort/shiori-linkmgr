@@ -1,0 +1,238 @@
+# Feature Specification: Terminal-Based Link Management Application
+
+**Feature Branch**: `feature/cli-link-manager`  
+**Created**: 2026-04-29  
+**Status**: Draft  
+**Input**: User description: "Build a terminal-based link management application written in Go that provides CRUD operations for managing bookmarks stored mysql compatible database the schema of which is described in schema.sql. The application features a clean cli interface using cobra and viper."
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Add New Bookmarks (Priority: P1)
+
+As a user, I want to quickly add a new bookmark from the command line by providing a URL and optional metadata, so I can capture interesting links without leaving my terminal workflow.
+
+**Why this priority**: Core functionality - without the ability to add bookmarks, the application has no value. This is the minimal viable product.
+
+**Independent Test**: Can be fully tested by running a single add command with a URL and verifying the bookmark is stored in the database. Delivers immediate value by allowing bookmark collection.
+
+**Acceptance Scenarios**:
+
+1. **Given** the database is empty, **When** I run `linkmgr add https://example.com`, **Then** a new bookmark is created with the URL and an auto-generated title
+2. **Given** I want to add metadata, **When** I run `linkmgr add https://example.com --title "Example" --tags "dev,tutorial"`, **Then** the bookmark is created with the specified title and tags
+3. **Given** a URL already exists, **When** I try to add it again, **Then** the system reports the duplicate and offers to update it
+4. **Given** an invalid URL is provided, **When** I run the add command, **Then** the system displays a clear error message
+
+---
+
+### User Story 2 - List and Search Bookmarks (Priority: P1)
+
+As a user, I want to list my bookmarks and search through them by title, URL, tags, or content, so I can quickly find links I've saved previously.
+
+**Why this priority**: Critical for usability - users need to retrieve saved bookmarks. Without search/list, bookmarks become inaccessible and the app is useless.
+
+**Independent Test**: Can be tested by adding a few sample bookmarks and verifying they can be listed and filtered using various criteria. Delivers immediate value by making saved bookmarks accessible.
+
+**Acceptance Scenarios**:
+
+1. **Given** I have 10 bookmarks, **When** I run `linkmgr list`, **Then** all bookmarks are displayed in a readable format with ID, title, URL, and tags
+2. **Given** I want to search, **When** I run `linkmgr search "golang"`, **Then** all bookmarks matching "golang" in title, content, or tags are displayed
+3. **Given** I want to filter by tag, **When** I run `linkmgr list --tag dev`, **Then** only bookmarks tagged with "dev" are shown
+4. **Given** I have many bookmarks, **When** I list them, **Then** results are paginated or limited to prevent terminal overflow
+5. **Given** no bookmarks match my search, **When** I search, **Then** a friendly "no results" message is displayed
+
+---
+
+### User Story 3 - View Bookmark Details (Priority: P2)
+
+As a user, I want to view detailed information about a specific bookmark including its full content, metadata, and creation date, so I can review saved information thoroughly.
+
+**Why this priority**: Important for user experience but not critical for MVP. Users can still function with list view only.
+
+**Independent Test**: Can be tested by retrieving a single bookmark by ID and verifying all fields are displayed correctly.
+
+**Acceptance Scenarios**:
+
+1. **Given** a bookmark exists with ID 5, **When** I run `linkmgr show 5`, **Then** all bookmark details are displayed including title, URL, author, excerpt, content, tags, created/modified dates
+2. **Given** I want to open the URL, **When** I run `linkmgr show 5 --open`, **Then** the bookmark details are shown and the URL opens in my default browser
+3. **Given** an invalid ID is provided, **When** I run `linkmgr show 999`, **Then** a clear error message indicates the bookmark doesn't exist
+
+---
+
+### User Story 4 - Update Existing Bookmarks (Priority: P2)
+
+As a user, I want to update bookmark metadata (title, tags, excerpt, content) after creation, so I can correct mistakes or add information as I learn more about the link.
+
+**Why this priority**: Important for data quality but not essential for initial use. Users can delete and re-add as a workaround.
+
+**Independent Test**: Can be tested by creating a bookmark, modifying it, and verifying the changes are persisted.
+
+**Acceptance Scenarios**:
+
+1. **Given** a bookmark with ID 3, **When** I run `linkmgr update 3 --title "New Title"`, **Then** the bookmark title is updated and modified_at timestamp is set
+2. **Given** a bookmark exists, **When** I run `linkmgr update 3 --tags "newtag1,newtag2"`, **Then** the tags are replaced with the new ones
+3. **Given** I want to add tags without replacing, **When** I run `linkmgr update 3 --add-tags "extra"`, **Then** the new tag is added to existing tags
+4. **Given** I want to toggle public status, **When** I run `linkmgr update 3 --public`, **Then** the public flag is set to true
+
+---
+
+### User Story 5 - Delete Bookmarks (Priority: P2)
+
+As a user, I want to delete bookmarks I no longer need, so I can keep my collection organized and relevant.
+
+**Why this priority**: Important for maintenance but not critical for initial use. Users can ignore unwanted bookmarks.
+
+**Independent Test**: Can be tested by creating and deleting a bookmark, verifying it's removed from the database.
+
+**Acceptance Scenarios**:
+
+1. **Given** a bookmark with ID 7, **When** I run `linkmgr delete 7`, **Then** a confirmation prompt is displayed
+2. **Given** I confirm deletion, **When** I respond "yes", **Then** the bookmark and its tag associations are deleted
+3. **Given** I want to skip confirmation, **When** I run `linkmgr delete 7 --force`, **Then** the bookmark is deleted immediately
+4. **Given** multiple bookmarks, **When** I run `linkmgr delete 1 2 3`, **Then** all specified bookmarks are deleted after confirmation
+
+---
+
+### User Story 6 - Manage Tags (Priority: P3)
+
+As a user, I want to view all tags, rename tags, and see tag usage statistics, so I can maintain a consistent tagging system.
+
+**Why this priority**: Nice to have for advanced organization but not essential. Basic tagging works through add/update commands.
+
+**Independent Test**: Can be tested by creating tags through bookmarks and managing them independently.
+
+**Acceptance Scenarios**:
+
+1. **Given** I have multiple tagged bookmarks, **When** I run `linkmgr tags`, **Then** all tags are listed with usage counts
+2. **Given** I want to rename a tag, **When** I run `linkmgr tag rename "old-name" "new-name"`, **Then** all bookmarks with the old tag are updated
+3. **Given** orphaned tags exist, **When** I run `linkmgr tags --cleanup`, **Then** tags with no associated bookmarks are removed
+
+---
+
+### User Story 7 - Configure Database Connection (Priority: P1)
+
+As a user, I want to configure my database connection settings through a config file or environment variables, so I can connect to my MySQL database securely.
+
+**Why this priority**: Essential infrastructure - the application cannot function without database connectivity.
+
+**Independent Test**: Can be tested by providing configuration and verifying successful database connection.
+
+**Acceptance Scenarios**:
+
+1. **Given** no configuration exists, **When** I run `linkmgr init`, **Then** a config file is created with prompts for database settings
+2. **Given** I have a config file at `~/.linkmgr.yaml`, **When** I run any command, **Then** the application uses those connection settings
+3. **Given** I set environment variables, **When** I run a command, **Then** environment variables override config file settings
+4. **Given** invalid database credentials, **When** I run a command, **Then** a clear connection error is displayed with troubleshooting hints
+
+---
+
+### User Story 8 - Export and Import Bookmarks (Priority: P3)
+
+As a user, I want to export my bookmarks to JSON/CSV and import from other formats, so I can backup my data or migrate from other bookmark tools.
+
+**Why this priority**: Useful for data portability but not critical for daily use.
+
+**Independent Test**: Can be tested by exporting data and verifying the output format, then importing and checking data integrity.
+
+**Acceptance Scenarios**:
+
+1. **Given** I have bookmarks, **When** I run `linkmgr export bookmarks.json`, **Then** all bookmarks are exported to JSON format
+2. **Given** a JSON export file, **When** I run `linkmgr import bookmarks.json`, **Then** bookmarks are imported with duplicate checking
+3. **Given** I want a specific format, **When** I run `linkmgr export --format csv bookmarks.csv`, **Then** data is exported as CSV
+
+---
+
+### Edge Cases
+
+- What happens when the database connection is lost during an operation?
+- How does the system handle extremely long URLs (>2000 characters)?
+- What happens when trying to add tags with special characters or spaces?
+- How does fulltext search handle non-ASCII characters and emoji?
+- What happens when modified_at is earlier than created_at due to data issues?
+- How does the system handle concurrent modifications to the same bookmark?
+- What happens when the config file has invalid YAML syntax?
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: System MUST provide CRUD operations (Create, Read, Update, Delete) for bookmarks
+- **FR-002**: System MUST store bookmarks in a MySQL-compatible database using the provided schema
+- **FR-003**: System MUST support adding tags to bookmarks and managing many-to-many tag relationships
+- **FR-004**: System MUST provide search functionality across title, excerpt, and content fields
+- **FR-005**: System MUST validate URLs before adding bookmarks
+- **FR-006**: System MUST prevent duplicate URLs (enforced by unique constraint)
+- **FR-007**: System MUST use Cobra framework for CLI command structure
+- **FR-008**: System MUST use Viper for configuration management
+- **FR-009**: System MUST automatically set created_at timestamp on bookmark creation
+- **FR-010**: System MUST automatically update modified_at timestamp on bookmark updates
+- **FR-011**: System MUST support filtering bookmarks by tags
+- **FR-012**: System MUST provide human-readable output formatting for list operations
+- **FR-013**: System MUST handle database connection errors gracefully with clear error messages
+- **FR-014**: System MUST support configuration via config file and environment variables
+- **FR-015**: System MUST maintain referential integrity between bookmarks and tags
+- **FR-016**: System MUST allow marking bookmarks as public or private
+- **FR-017**: System MUST support pagination for large result sets
+- **FR-018**: System MUST provide confirmation prompts for destructive operations (delete)
+- **FR-019**: System MUST support batch operations where appropriate (multi-delete)
+- **FR-020**: System MUST log errors and warnings appropriately
+
+### Key Entities
+
+- **Bookmark**: Represents a saved link with URL, title, excerpt, author, content, HTML, public flag, has_content flag, and timestamps. Related to tags through many-to-many relationship.
+- **Tag**: Represents a categorization label with unique name. Can be associated with multiple bookmarks.
+- **Account**: Represents user accounts (acknowledged but not actively used in MVP - can be future enhancement)
+- **BookmarkTag**: Junction table managing many-to-many relationship between bookmarks and tags
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: Users can add a new bookmark with URL and tags in a single command taking less than 2 seconds
+- **SC-002**: Search operations return results in under 500ms for databases with up to 10,000 bookmarks
+- **SC-003**: The CLI interface follows standard Unix conventions (exit codes, flags, output formatting)
+- **SC-004**: 100% of CRUD operations successfully persist data to the database without data loss
+- **SC-005**: Error messages provide actionable guidance for all common failure scenarios
+- **SC-006**: Configuration can be completed through interactive prompts in under 1 minute
+- **SC-007**: List operations display results in a scannable format that fits standard 80-column terminals
+- **SC-008**: Tag management maintains consistency (no orphaned tags unless explicitly allowed)
+
+## Technical Constraints
+
+- **TC-001**: Application MUST be written in Go
+- **TC-002**: Application MUST use Cobra library for CLI interface
+- **TC-003**: Application MUST use Viper library for configuration management
+- **TC-004**: Application MUST be compatible with MySQL/MariaDB using the provided schema
+- **TC-005**: Application MUST be a single-binary executable with no external dependencies beyond database
+- **TC-006**: Application SHOULD follow Go best practices and idiomatic patterns
+- **TC-007**: Application SHOULD use structured logging
+- **TC-008**: Application SHOULD support common MySQL connection parameters (host, port, user, password, database)
+
+## Assumptions
+
+- Users have a MySQL or MariaDB database already running and accessible
+- Users are comfortable with command-line interfaces and basic terminal operations
+- The schema.sql represents the source of truth for database structure
+- Initial version is single-user focused (account table exists but authentication not implemented)
+- Users will primarily interact with bookmarks sequentially, not concurrently
+- The database charset is utf8mb4 supporting international characters and emoji
+- Configuration file will be stored in user's home directory (~/.linkmgr.yaml) by default
+- Users want a fast, lightweight tool without web UI or browser extensions
+- Network connectivity is required only for database access, not for fetching bookmark content
+- The `has_content` flag indicates whether the content field has been populated
+- Public/private flag is stored but access control is not enforced by this application
+- Fulltext search will use MySQL's native FULLTEXT index capabilities
+- Users prefer explicit commands over interactive menus for common operations
+
+## Out of Scope (Future Enhancements)
+
+- Web interface or API server
+- Automatic content extraction from URLs (webpage scraping)
+- Browser integration or extensions
+- User authentication and multi-user support
+- Bookmark sharing or social features
+- Automatic tagging or AI-based categorization
+- Synchronization across devices
+- Archive/snapshot functionality for saving page content
+- Reading list or read/unread status tracking
+- Notes or annotations on bookmarks
+- Bookmark collections or folders (beyond tags)
